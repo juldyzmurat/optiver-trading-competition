@@ -1,0 +1,31 @@
+      Selected Features  Train MSE  Validation MSE
+0              ask_size     78.748          79.253
+1              bid_size     78.158          78.716
+2                spread     77.388          77.997
+3                   wap     76.308          77.087
+4   imbalance_buy_se...     76.169          77.043
+5   imbalance_size_t...     76.146          77.011
+6     seconds_in_bucket     76.144          77.020
+7             time_diff     76.132          77.015
+8   bid_size_change_...     76.132          77.015
+9              stock_id     76.133          77.016
+10      bid_size_change     76.127          77.014
+11     ask_price_change     76.127          77.016
+12      reference_price     76.115          77.019
+13      spread_weighted     76.096          77.020
+14            bid_price     76.088          77.017
+15  ask_price_change...     76.078          77.021
+16      ask_size_change     76.080          77.020
+17  ask_size_change_...     76.077          77.024
+18         matched_size     76.078          77.026
+19               volume     76.055          77.024
+20  bid_price_change...     76.056          77.023
+21     bid_price_change     76.045          77.028
+22              date_id     76.044          77.029
+23              time_id     76.038          77.028
+24  numerical_timestamp     76.034          77.032
+25       imbalance_size     76.034          77.032
+26      volume_weighted     76.028          77.033
+27            ask_price     76.024          77.042
+
+Forward Selection for 80.0% of data:
