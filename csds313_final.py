@@ -59,26 +59,30 @@ for column in columns_to_impute:
     median_value = Xy_train[column].median()
     Xy_train[column] = Xy_train[column].fillna(median_value)
 
+
+# %%
+#mutual information
+from sklearn.feature_selection import mutual_info_regression
+
+# Xy_train = Xy_train.head(10510)
+
+y_train = Xy_train['target']
+X_train = Xy_train.drop(columns=['target', 'row_id'], inplace=False)
+
+mutual_info_scores = mutual_info_regression(X_train, y_train)
+feature_mutual_info_scores = pd.Series(mutual_info_scores, index=X_train.columns, name="Mutual_Information")
+print("Mutual information between each feature and target:")
+print(feature_mutual_info_scores)
+
 #%%
-#feature correlaiton heatmap 
-import seaborn as sns
-import matplotlib.pyplot as plt
-import pandas as pd
+#feature correlation heatmap 
+from mlxtend.plotting import heatmap
 
-# Assuming 'df' is your DataFrame
-# If you don't have seaborn and matplotlib installed, you can install them using:
-# pip install seaborn matplotlib
+legal_Xy_train = Xy_train.drop(columns=['row_id'], inplace=False)
 
-# Generate a correlation matrix
-correlation_matrix = Xy_train.corr()
-
-# Set up the matplotlib figure
-plt.figure(figsize=(10, 8))
-
-# Create a heatmap using seaborn
-sns.heatmap(correlation_matrix, annot=True, cmap="warmcool", fmt=".2f", linewidths=.5)
-
-# Show the plot
+correlation_coefs = legal_Xy_train.corr()
+corresponding_heatmap = heatmap(correlation_coefs.values, row_names=correlation_coefs.columns, column_names=correlation_coefs.columns)
+plt.tight_layout()
 plt.show()
 
 # %%
@@ -98,6 +102,9 @@ Xy_train['time_diff'] = Xy_train.groupby('stock_id')['numerical_timestamp'].diff
 Xy_train['bid_price_change'] = Xy_train.groupby('stock_id')['bid_price'].diff()
 Xy_train['ask_price_change'] = Xy_train.groupby('stock_id')['ask_price'].diff()
 
+# Calculate changes in bid and ask sizes
+Xy_train['bid_size_change'] = Xy_train.groupby('stock_id')['bid_size'].diff()
+Xy_train['ask_size_change'] = Xy_train.groupby('stock_id')['ask_size'].diff()
 
 # Calculate spread
 Xy_train['spread'] = Xy_train['ask_price'] - Xy_train['bid_price']
