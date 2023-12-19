@@ -59,6 +59,33 @@ for column in columns_to_impute:
     median_value = Xy_train[column].median()
     Xy_train[column] = Xy_train[column].fillna(median_value)
 
+
+# %%
+#mutual information
+    
+from sklearn.feature_selection import mutual_info_regression
+
+# Xy_train = Xy_train.head(10510)
+
+y_train = Xy_train['target']
+X_train = Xy_train.drop(columns=['target', 'row_id'], inplace=False)
+
+mutual_info_scores = mutual_info_regression(X_train, y_train)
+feature_mutual_info_scores = pd.Series(mutual_info_scores, index=X_train.columns, name="Mutual_Information")
+print("Mutual information between each feature and target:")
+print(feature_mutual_info_scores)
+
+#%%
+#feature correlation heatmap 
+from mlxtend.plotting import heatmap
+
+legal_Xy_train = Xy_train.drop(columns=['row_id'], inplace=False)
+
+correlation_coefs = legal_Xy_train.corr()
+corresponding_heatmap = heatmap(correlation_coefs.values, row_names=correlation_coefs.columns, column_names=correlation_coefs.columns)
+plt.tight_layout()
+plt.show()
+
 # %%
 #Create stock-specific features capturing temporal order book dynamics for each stock individually.
 #Calculate changes in bid and ask prices, order sizes, spread, and volume.
@@ -354,12 +381,6 @@ evaluate_model(X_train_wrapper, X_test_wrapper, y_train, y_test)
 # print("\nEmbedded model evaluation:")
 # evaluate_model(X_train_embedded, X_test_embedded, y_train, y_test)
 
-
-# %%
-#mutual information 
-
-#%%
-#feature correlation heatmap 
 
 #%%
 #revisit the three feature selection methods from math perspective 
