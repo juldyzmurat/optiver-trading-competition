@@ -65,7 +65,6 @@ for column in columns_to_impute:
 from sklearn.feature_selection import mutual_info_regression
 
 # Xy_train = Xy_train.head(10510)
-
 y_train = Xy_train['target']
 X_train = Xy_train.drop(columns=['target', 'row_id'], inplace=False)
 
@@ -73,6 +72,7 @@ mutual_info_scores = mutual_info_regression(X_train, y_train)
 feature_mutual_info_scores = pd.Series(mutual_info_scores, index=X_train.columns, name="Mutual_Information")
 print("Mutual information between each feature and target:")
 print(feature_mutual_info_scores)
+
 
 #%%
 #feature correlation heatmap 
@@ -84,6 +84,7 @@ correlation_coefs = legal_Xy_train.corr()
 corresponding_heatmap = heatmap(correlation_coefs.values, row_names=correlation_coefs.columns, column_names=correlation_coefs.columns)
 plt.tight_layout()
 plt.show()
+
 
 # %%
 #Create stock-specific features capturing temporal order book dynamics for each stock individually.
