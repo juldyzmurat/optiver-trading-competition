@@ -59,6 +59,28 @@ for column in columns_to_impute:
     median_value = Xy_train[column].median()
     Xy_train[column] = Xy_train[column].fillna(median_value)
 
+#%%
+#feature correlaiton heatmap 
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Assuming 'df' is your DataFrame
+# If you don't have seaborn and matplotlib installed, you can install them using:
+# pip install seaborn matplotlib
+
+# Generate a correlation matrix
+correlation_matrix = Xy_train.corr()
+
+# Set up the matplotlib figure
+plt.figure(figsize=(10, 8))
+
+# Create a heatmap using seaborn
+sns.heatmap(correlation_matrix, annot=True, cmap="warmcool", fmt=".2f", linewidths=.5)
+
+# Show the plot
+plt.show()
+
 # %%
 #Create stock-specific features capturing temporal order book dynamics for each stock individually.
 #Calculate changes in bid and ask prices, order sizes, spread, and volume.
@@ -76,9 +98,6 @@ Xy_train['time_diff'] = Xy_train.groupby('stock_id')['numerical_timestamp'].diff
 Xy_train['bid_price_change'] = Xy_train.groupby('stock_id')['bid_price'].diff()
 Xy_train['ask_price_change'] = Xy_train.groupby('stock_id')['ask_price'].diff()
 
-# Calculate changes in bid and ask sizes
-Xy_train['bid_size_change'] = Xy_train.groupby('stock_id')['bid_size'].diff()
-Xy_train['ask_size_change'] = Xy_train.groupby('stock_id')['ask_size'].diff()
 
 # Calculate spread
 Xy_train['spread'] = Xy_train['ask_price'] - Xy_train['bid_price']
