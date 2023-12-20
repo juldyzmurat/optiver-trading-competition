@@ -355,12 +355,12 @@ def generate_all_features(df):
     df = df[cols]
     
     # Generate TA features
-    df = generate_ta(df)
+    #df = generate_ta(df)
     gc.collect() # Perform garbage collection to free up memory
     
     # Generate imbalance features
-    df = imbalance_features(df)
-    df = other_features(df)
+    # df = imbalance_features(df)
+    # df = other_features(df)
     gc.collect()  
     
     feature_names = [c for c in df.columns if c not in ["row_id", "target", "time_id", "date_id"]]
@@ -659,12 +659,12 @@ def generate_all_features(df):
     df = df[cols]
     
     # Generate TA features
-    df = generate_ta(df)
+    #df = generate_ta(df)
     gc.collect() # Perform garbage collection to free up memory
     
     # Generate imbalance features
-    df = imbalance_features(df)
-    df = other_features(df)
+    # df = imbalance_features(df)
+    # df = other_features(df)
     gc.collect()  
     
     feature_names = [c for c in df.columns if c not in ["row_id", "target", "time_id", "date_id"]]
@@ -708,6 +708,7 @@ if is_train:
 
     df_train_feats = reduce_memory_usage(df_train_feats)
 # %%
+import time
 feature_name = list(df_train_feats.columns)
 print(f"Feature length = {len(feature_name)}")
 
@@ -725,7 +726,7 @@ if not os.path.exists(model_save_path):
 
 # We need to use the date_id from df_train to split the data
 date_ids = df_train['date_id'].values
-
+start_time = time.time()
 for i in range(num_folds):
     start = i * fold_size
     end = start + fold_size
@@ -795,6 +796,9 @@ final_model.fit(
     ],
 )
 
+end_time = time.time()
+elapsed_time = end_time - start_time
+print(f"Training time {elapsed_time}")
 # Append the final model to the list of models
 models.append(final_model)
 
