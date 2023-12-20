@@ -854,3 +854,152 @@ lgbm.plot_importance(lgbm_model, max_num_features=25, importance_type="gain", gr
 
 #     time_cost = 1.146 * np.mean(qps)
 #     print(f"The code will take approximately {np.round(time_cost, 4)} hours to reason about")
+
+#%%
+#plot the mae of all groups 
+import pandas as pd
+import re
+
+files = ["stock_id_group_by_orig_10stocks.txt", "stock_id_group_by_orig_and_ta_10stocks.txt",
+         "stock_id_group_by_orig_50stocks.txt", "stock_id_group_by_orig_and_ta_50stocks.txt",
+         "stock_id_group_by_orig_100stocks.txt", "stock_id_group_by_orig_and_ta_100stocks.txt"]
+
+data = []
+
+for file in files:
+    with open(file, 'r') as f:
+        lines = f.readlines()
+
+    mae_values = []
+    for line in lines:
+        # Extract numbers after "l1: " for average_mae
+        # mae_match = re.search(r'Fold (\d) MAE: (\d+\.\d+)', line)
+        # if mae_match:
+        #     fold_number = int(mae_match.group(1))
+        #     mae_value = float(mae_match.group(2))
+        #     mae_values.append(mae_value)
+        
+        mae_match = re.search(r'l1: (\d+\.\d+)', line)
+        if mae_match:
+            mae_values.append(float(mae_match.group(1)))
+            
+        # Find line with "Training time " for training time
+        time_match = re.search(r'Training time (\d+\.\d+)', line)
+        if time_match:
+            training_time = float(time_match.group(1))
+            
+        # Find line with "Training time " for training time
+        average_mae_match = re.search(r'Average MAE across all folds: (\d+\.\d+)', line)
+        if average_mae_match:
+            average_mae = float(average_mae_match.group(1))
+            
+        
+
+    # Calculate average_mae and std
+    std = pd.Series(mae_values).std()
+
+    data.append({
+        'average_mae': average_mae,
+        'std': std,
+        'training_time': training_time,
+        'mae_values': mae_values
+    })
+
+# Create DataFrame
+df = pd.DataFrame(data)
+
+# Display the resulting DataFrame
+print(df)
+
+# %%
+import matplotlib.pyplot as plt
+
+# Assuming df is your DataFrame
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# Whisker plot for each row in 'mae_values'
+boxplot = ax.boxplot(df['mae_values'], vert=True, widths=0.6, showfliers=False, medianprops={'color': 'blue'}, patch_artist=True)
+custom_labels = ['Orig, 10', 'Orig w/ ta, 10', 'Orig, 50', 'Orig w/ ta, 50', 'Orig, 100', 'Orig w/ ta, 100']
+
+# Check if the length of the DataFrame matches the number of custom labels
+if len(df) == len(custom_labels):
+    colors = ['lightcoral' if i % 2 == 0 else 'lightgreen' for i in range(len(custom_labels))]
+    
+    for box, color in zip(boxplot['boxes'], colors):
+        box.set_facecolor(color)
+    
+    ax.set_xticks(range(1, len(df) + 1))
+    ax.set_xticklabels(custom_labels)
+else:
+    print("Length of DataFrame and number of custom labels do not match.")
+
+# Set axis labels and title
+ax.set_ylabel('MAE score')
+ax.set_xlabel('Models')
+ax.set_title('MAE Values of Validation')
+
+# Show the plot
+plt.show()
+# %%
+custom_labels = ['Orig, 10', 'Orig w/ ta, 10', 'Orig, 50', 'Orig w/ ta, 50', 'Orig, 100', 'Orig w/ ta, 100']
+
+# Plotting
+plt.bar(custom_labels, df['training_time'], color='blue')
+plt.xlabel('Models')
+plt.ylabel('Training Time, s')
+plt.title('Training Time for Each Model')
+plt.show()
+
+# %%
+import numpy as np
+from scipy.stats import ttest_ind
+
+# Generate two sample datasets with different variances
+np.random.seed(42)
+group1 = df['mae_values'].iloc[2]
+group2 = df['mae_values'].iloc[3]
+
+t_stat, p_value = ttest_ind(group1, group2, equal_var=False)
+
+# Specify the percentage decrease for the alternative hypothesis
+percentage_decrease = 5
+
+# Calculate the threshold for the one-sided test
+threshold = np.mean(group1) * (1 - percentage_decrease / 100)
+
+# Print the results
+print("Welch's t-test:")
+print(f'T-statistic: {t_stat}')
+print(f'P-value: {p_value}')
+print(f'Threshold for a {percentage_decrease}% decrease: {threshold}')
+
+# Check if the result is statistically significant at a common alpha level (e.g., 0.05)
+alpha = 0.05
+if np.mean(group2) < threshold and p_value < alpha:
+    print("Result is statistically significant; reject the null hypothesis.")
+else:
+    print("Result is not statistically significant; fail to reject the null hypothesis.")
+# %%
+import numpy as np
+from scipy.stats import ttest_ind
+
+# Generate two sample datasets with different variances
+group1 = df['mae_values'].iloc[4]
+group2 = df['mae_values'].iloc[5]
+# Perform Welch's t-test
+t_stat, p_value = ttest_ind(group1, group2, equal_var=False)
+
+# Print the results
+print("Welch's t-test:")
+print(f'T-statistic: {t_stat}')
+print(f'P-value: {p_value}')
+
+# Check if the result is statistically significant at a common alpha level (e.g., 0.05)
+alpha = 0.05
+if p_value < alpha:
+    print("Result is statistically significant; reject the null hypothesis.")
+else:
+    print("Result is not statistically significant; fail to reject the null hypothesis.")
+
+# %%
