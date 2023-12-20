@@ -89,9 +89,6 @@ sns.heatmap(correlation_matrix, annot=True, cmap="warmcool", fmt=".2f", linewidt
 # mutual information
 from sklearn.feature_selection import mutual_info_regression
 
-<<<<<<< Updated upstream
-# Show the plot
-=======
 y_train = Xy_train['target']
 X_train = Xy_train.drop(columns=['target', 'row_id'], inplace=False)
 
@@ -109,7 +106,6 @@ legal_Xy_train = Xy_train.drop(columns=['row_id'], inplace=False)
 
 correlation_coefs = legal_Xy_train.corr()
 corresponding_heatmap = heatmap(correlation_coefs.values, row_names=correlation_coefs.columns, column_names=correlation_coefs.columns)
->>>>>>> Stashed changes
 plt.show()
 
 
