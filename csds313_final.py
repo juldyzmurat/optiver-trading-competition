@@ -52,16 +52,19 @@ Xy_train = Xy_train.drop(['far_price', 'near_price'], axis=1)
 Xy_train
 # %%
 #fill in for missing values
-columns_to_impute = ['imbalance_size', 'reference_price', 'matched_size', 'bid_price', 'ask_price', 'wap', 'target']
+# columns_to_impute = ['imbalance_size', 'reference_price', 'matched_size', 'bid_price', 'ask_price', 'wap', 'target']
+# for column in columns_to_impute:
+#     median_value = Xy_train[column].median()
+#     Xy_train[column] = Xy_train[column].fillna(median_value)
 
-# Impute missing values for each specified column with the median
-for column in columns_to_impute:
-    median_value = Xy_train[column].median()
-    Xy_train[column] = Xy_train[column].fillna(median_value)
+# Impute missing values with the median of corresponding column
+from sklearn.impute import SimpleImputer
+imputer = SimpleImputer(strategy="median")
+Xy_train = pd.DataFrame(imputer.fit_transform(Xy_train), columns=Xy_train.columns)
 
 
 # %%
-#mutual information
+# mutual information
 from sklearn.feature_selection import mutual_info_regression
 
 # Xy_train = Xy_train.head(10510)
