@@ -24,7 +24,8 @@ is_offline = False
 is_train = True  
 is_infer = True 
 max_lookback = np.nan 
-split_day = 435
+#changed it to get 90% of 63 days 
+split_day = 56
 SEED = 42
 # %%
 lgbm_params = {
@@ -36,7 +37,7 @@ lgbm_params = {
     'max_depth': 11,
     "colsample_bytree" : 0.8,
     "n_jobs": 4,
-    "device": "gpu",
+    "device": "cpu",
     "verbosity": -1,
     "importance_type": "gain",
     "random_state": SEED,
@@ -46,6 +47,7 @@ lgbm_params = {
 # 📂 Read the dataset from a CSV file using Pandas
 df = pd.read_csv("data/train.csv")
 df = df[df['stock_id'].between(0, 9)]
+df = df[df['date_id'].between(0, 62)]
 df
 
 # 🧹 Remove rows with missing values in the "target" column
@@ -316,6 +318,7 @@ def generate_ta(df):
     prices = ["reference_price", "far_price", "near_price", "ask_price", "bid_price", "wap"]
     # sizes = ["matched_size", "bid_size", "ask_size", "imbalance_size"]
     
+    #group by stock_id and "date_id" 
     for stock_id, values in df.groupby(['stock_id'])[prices]:
         # RSI
         col_rsi = [f'rsi_{col}' for col in values.columns]
@@ -710,7 +713,7 @@ print(f"Feature length = {len(feature_name)}")
 
 # The total number of date_ids is 480, we split them into 5 folds with a gap of 5 days in between
 num_folds = 5
-fold_size = 480 // num_folds
+fold_size = 63 // num_folds
 gap = 5
 
 models = []
@@ -805,45 +808,45 @@ print(f"Average MAE across all folds: {np.mean(scores)}")
 #%%
 lgbm.plot_importance(lgbm_model, max_num_features=25, importance_type="gain", grid=False, precision=1)
 #%%
-def zero_sum(prices, volumes):
-    std_error = np.sqrt(volumes)
-    step = np.sum(prices) / np.sum(std_error)
-    out = prices - std_error * step
-    return out
+# def zero_sum(prices, volumes):
+#     std_error = np.sqrt(volumes)
+#     step = np.sum(prices) / np.sum(std_error)
+#     out = prices - std_error * step
+#     return out
 
-if is_infer:
-    import optiver2023
-    env = optiver2023.make_env()
-    iter_test = env.iter_test()
-    counter = 0
-    y_min, y_max = -64, 64
-    qps, predictions = [], []
-    cache = pd.DataFrame()
+# if is_infer:
+#     import optiver2023
+#     env = optiver2023.make_env()
+#     iter_test = env.iter_test()
+#     counter = 0
+#     y_min, y_max = -64, 64
+#     qps, predictions = [], []
+#     cache = pd.DataFrame()
 
-    # Weights for each fold model
-    model_weights = [1/len(models)] * len(models) 
+#     # Weights for each fold model
+#     model_weights = [1/len(models)] * len(models) 
     
-    for (test, revealed_targets, sample_prediction) in iter_test:
-        now_time = time.time()
-        cache = pd.concat([cache, test], ignore_index=True, axis=0)
+#     for (test, revealed_targets, sample_prediction) in iter_test:
+#         now_time = time.time()
+#         cache = pd.concat([cache, test], ignore_index=True, axis=0)
         
-        if counter > 0:
-            cache = cache.groupby(['stock_id']).tail(21).sort_values(by=['date_id', 'seconds_in_bucket', 'stock_id']).reset_index(drop=True)
-        feat = generate_all_features(cache)[-len(test):]
+#         if counter > 0:
+#             cache = cache.groupby(['stock_id']).tail(21).sort_values(by=['date_id', 'seconds_in_bucket', 'stock_id']).reset_index(drop=True)
+#         feat = generate_all_features(cache)[-len(test):]
 
-        # Generate predictions for each model and calculate the weighted average
-        lgbm_predictions = np.zeros(len(test))
-        for model, weight in zip(models, model_weights):
-            lgbm_predictions += weight * model.predict(feat)
+#         # Generate predictions for each model and calculate the weighted average
+#         lgbm_predictions = np.zeros(len(test))
+#         for model, weight in zip(models, model_weights):
+#             lgbm_predictions += weight * model.predict(feat)
 
-        lgbm_predictions = zero_sum(lgbm_predictions, test['bid_size'] + test['ask_size'])
-        clipped_predictions = np.clip(lgbm_predictions, y_min, y_max)
-        sample_prediction['target'] = clipped_predictions
-        env.predict(sample_prediction)
-        counter += 1
-        qps.append(time.time() - now_time)
-        if counter % 10 == 0:
-            print(counter, 'qps:', np.mean(qps))
+#         lgbm_predictions = zero_sum(lgbm_predictions, test['bid_size'] + test['ask_size'])
+#         clipped_predictions = np.clip(lgbm_predictions, y_min, y_max)
+#         sample_prediction['target'] = clipped_predictions
+#         env.predict(sample_prediction)
+#         counter += 1
+#         qps.append(time.time() - now_time)
+#         if counter % 10 == 0:
+#             print(counter, 'qps:', np.mean(qps))
 
-    time_cost = 1.146 * np.mean(qps)
-    print(f"The code will take approximately {np.round(time_cost, 4)} hours to reason about")
+#     time_cost = 1.146 * np.mean(qps)
+#     print(f"The code will take approximately {np.round(time_cost, 4)} hours to reason about")
