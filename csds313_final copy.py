@@ -49,12 +49,7 @@ print(nan_counts)
 # %%
 #drop the far_price and #near price 
 Xy_train = Xy_train.drop(['far_price', 'near_price'], axis=1)
-
-Xy_train = Xy_train[Xy_train['stock_id'].between(0, 9)]
-
 Xy_train
-
-
 # %%
 #fill in for missing values
 # columns_to_impute = ['imbalance_size', 'reference_price', 'matched_size', 'bid_price', 'ask_price', 'wap', 'target']
@@ -67,38 +62,20 @@ from sklearn.impute import SimpleImputer
 imputer = SimpleImputer(strategy="median")
 Xy_train = pd.DataFrame(imputer.fit_transform(Xy_train), columns=Xy_train.columns)
 
-#%%
-#feature correlaiton heatmap 
-import seaborn as sns
-import matplotlib.pyplot as plt
-import pandas as pd
 
-# Assuming 'df' is your DataFrame
-# If you don't have seaborn and matplotlib installed, you can install them using:
-# pip install seaborn matplotlib
-
-# Generate a correlation matrix
-correlation_matrix = Xy_train.corr()
-
-# Set up the matplotlib figure
-plt.figure(figsize=(10, 8))
-
-# Create a heatmap using seaborn
-sns.heatmap(correlation_matrix, annot=True, cmap="warmcool", fmt=".2f", linewidths=.5)
 # %%
 # mutual information
-from sklearn.feature_selection import mutual_info_regression
+# from sklearn.feature_selection import mutual_info_regression
 
-<<<<<<< Updated upstream
-# Show the plot
-=======
-y_train = Xy_train['target']
-X_train = Xy_train.drop(columns=['target', 'row_id'], inplace=False)
+# Xy_train = Xy_train.head(10510)
 
-mutual_info_scores = mutual_info_regression(X_train, y_train)
-feature_mutual_info_scores = pd.Series(mutual_info_scores, index=X_train.columns, name="Mutual_Information")
-print("Mutual information between each feature and target:")
-print(feature_mutual_info_scores)
+# y_train = Xy_train['target']
+# X_train = Xy_train.drop(columns=['target', 'row_id'], inplace=False)
+
+# mutual_info_scores = mutual_info_regression(X_train, y_train)
+# feature_mutual_info_scores = pd.Series(mutual_info_scores, index=X_train.columns, name="Mutual_Information")
+# print("Mutual information between each feature and target:")
+# print(feature_mutual_info_scores)
 
 
 #%%
@@ -109,62 +86,9 @@ legal_Xy_train = Xy_train.drop(columns=['row_id'], inplace=False)
 
 correlation_coefs = legal_Xy_train.corr()
 corresponding_heatmap = heatmap(correlation_coefs.values, row_names=correlation_coefs.columns, column_names=correlation_coefs.columns)
->>>>>>> Stashed changes
 plt.show()
 
 
-#%%
-#filter based feature selection 
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-
-train_x, test_x, train_y, test_y= train_test_split(Xy_train.drop("target",axis=1),Xy_train.target,test_size=0.2,random_state=41)
-
-imp = Xy_train.drop("target", axis=1).apply(lambda x: x.corr(Xy_train.target))
-print(imp)
-indices = np.argsort(imp)
-print(indices)
-print(imp[indices])   
-
-#%%
-#plot the results of filter-based feature selection 
-import matplotlib.pyplot as plt
-
-names=imp.index
-plt.title('Importance of original features in the data frame')
-
-#Plotting horizontal bar graph
-plt.barh(range(len(indices)), imp[indices], color='g', align='center')
-plt.yticks(range(len(indices)), [names[i] for i in indices])
-plt.xlabel('Relative Importance')
-plt.show()
-
-#%%
-#continuation of filter based selection
-X= Xy_train.drop("target",axis=1)
-for i in range(0,len(X.columns)):
-    for j in  range(0,len(X.columns)):
-        if i!=j:
-            corr_1=np.abs(X[X.columns[i]].corr(X[X.columns[j]]))
-            if corr_1 <0.3:
-                print( X.columns[i] , " is not correlated  with ", X.columns[j])
-            elif corr_1>0.75:
-                print( X.columns[i] , " is highly  correlated  with ", X.columns[j])
-
-#%%
-#mutual information 
-X = Xy_train.drop("target",axis=1)
-y = Xy_train['target']
-from sklearn.feature_selection import mutual_info_regression
-mi = mutual_info_regression(X, y)
-#%%
-# Plotting the mutual information
-
-mi = pd.Series(mi)
-mi.index = X.columns
-mi.sort_values(ascending=False)
-mi.sort_values(ascending=False).plot.bar(figsize=(10, 4))
 # %%
 #Create stock-specific features capturing temporal order book dynamics for each stock individually.
 #Calculate changes in bid and ask prices, order sizes, spread, and volume.
@@ -182,8 +106,10 @@ Xy_train['time_diff'] = Xy_train.groupby('stock_id')['numerical_timestamp'].diff
 Xy_train['bid_price_change'] = Xy_train.groupby('stock_id')['bid_price'].diff()
 Xy_train['ask_price_change'] = Xy_train.groupby('stock_id')['ask_price'].diff()
 
+# Calculate changes in bid and ask sizes
 Xy_train['bid_size_change'] = Xy_train.groupby('stock_id')['bid_size'].diff()
 Xy_train['ask_size_change'] = Xy_train.groupby('stock_id')['ask_size'].diff()
+
 # Calculate spread
 Xy_train['spread'] = Xy_train['ask_price'] - Xy_train['bid_price']
 
@@ -202,14 +128,6 @@ Xy_train['spread_weighted'] = Xy_train['spread'] * time_weight
 Xy_train['volume_weighted'] = Xy_train['volume'] * time_weight
 Xy_train['imbalance_size_target'] = Xy_train.groupby('stock_id')['imbalance_size'].transform(lambda x: x.shift(-1))
 
-#%%
-#count the rows with nan 
-nan_counts = Xy_train.isna().sum(axis=1)
-
-# Count the total number of rows with at least one NaN value
-total_rows_with_nan = (nan_counts > 0).sum()
-
-print(f'Total number of rows with NaN values: {total_rows_with_nan}')
 #%%
 columns_with_missing = Xy_train.columns[Xy_train.isnull().any()].tolist()
 
@@ -236,10 +154,6 @@ Xy_train = Xy_train.reset_index(drop=True)
 print(Xy_train.head())
 
 # Display the updated DataFrame
-
-#%%
-#check the unique values for time
-unique_values_count = Xy_train["stock_id"].nunique()
 
 #%%
 #only leave 20% 
@@ -471,22 +385,8 @@ evaluate_model(X_train_wrapper, X_test_wrapper, y_train, y_test)
 # evaluate_model(X_train_embedded, X_test_embedded, y_train, y_test)
 
 
-# %%
-#mutual information 
-
-#%%
-#feature correlation heatmap 
-
 #%%
 #revisit the three feature selection methods from math perspective 
 #compare lstm with xgboost - be careful with the format
 #test presence and absence of wap 
 #%%
-#lstm model 
-Xy_train_1 = Xy_train[Xy_train['stock_id'] == 0]
-Xy_train_1
-# %%
-#scaling 
-from sklearn.preprocessing import MinMaxScaler
-sc = MinMaxScaler(feature_range=(0,1))
-Xy_train = sc.fit_transform(Xy_train)
