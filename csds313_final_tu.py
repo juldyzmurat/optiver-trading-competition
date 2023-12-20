@@ -12,6 +12,9 @@ import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
 import seaborn as sns
 
+from itertools import combinations
+from numba import njit, prange
+
 # Statistics Libraries
 import statsmodels.api as sm
 import statsmodels.tsa.api as smt
@@ -48,11 +51,118 @@ print(nan_counts)
 
 # %%
 #drop the far_price and #near price 
-Xy_train = Xy_train.drop(['far_price', 'near_price'], axis=1)
+# Xy_train = Xy_train.drop(['far_price', 'near_price'], axis=1)
 
-Xy_train = Xy_train[Xy_train['stock_id'].between(0, 9)]
-
+Xy_train = Xy_train[Xy_train['stock_id'].between(0, 99)]
+Xy_train = Xy_train[Xy_train['date_id'].between(0, 62)]
 Xy_train
+
+
+# %%
+def calculate_rsi(prices, period=14):
+    rsi_values = np.zeros_like(prices)
+
+    for col in prange(prices.shape[1]):
+        price_data = prices[:, col]
+        delta = np.zeros_like(price_data)
+        delta[1:] = price_data[1:] - price_data[:-1]
+        gain = np.where(delta > 0, delta, 0)
+        loss = np.where(delta < 0, -delta, 0)
+
+        avg_gain = np.mean(gain[:period])
+        avg_loss = np.mean(loss[:period])
+        
+        if avg_loss != 0:
+            rs = avg_gain / avg_loss
+        else:
+            rs = 1e-9  # or any other appropriate default value
+            
+        rsi_values[:period, col] = 100 - (100 / (1 + rs))
+
+        for i in prange(period-1, len(price_data)-1):
+            avg_gain = (avg_gain * (period - 1) + gain[i]) / period
+            avg_loss = (avg_loss * (period - 1) + loss[i]) / period
+            if avg_loss != 0:
+                rs = avg_gain / avg_loss
+            else:
+                rs = 1e-9  # or any other appropriate default value
+            rsi_values[i+1, col] = 100 - (100 / (1 + rs))
+
+    return rsi_values
+
+def calculate_macd(data, short_window=12, long_window=26, signal_window=9):
+    rows, cols = data.shape
+    macd_values = np.empty((rows, cols))
+    signal_line_values = np.empty((rows, cols))
+    histogram_values = np.empty((rows, cols))
+
+    for i in prange(cols):
+        short_ema = np.zeros(rows)
+        long_ema = np.zeros(rows)
+
+        for j in range(1, rows):
+            short_ema[j] = (data[j, i] - short_ema[j - 1]) * (2 / (short_window + 1)) + short_ema[j - 1]
+            long_ema[j] = (data[j, i] - long_ema[j - 1]) * (2 / (long_window + 1)) + long_ema[j - 1]
+
+        macd_values[:, i] = short_ema - long_ema
+
+        signal_line = np.zeros(rows)
+        for j in range(1, rows):
+            signal_line[j] = (macd_values[j, i] - signal_line[j - 1]) * (2 / (signal_window + 1)) + signal_line[j - 1]
+
+        signal_line_values[:, i] = signal_line
+        histogram_values[:, i] = macd_values[:, i] - signal_line
+
+    return macd_values, signal_line_values, histogram_values
+
+def calculate_bband(data, window=20, num_std_dev=2):
+    num_rows, num_cols = data.shape
+    upper_bands = np.zeros_like(data)
+    lower_bands = np.zeros_like(data)
+    mid_bands = np.zeros_like(data)
+
+    for col in prange(num_cols):
+        for i in prange(window - 1, num_rows):
+            window_slice = data[i - window + 1 : i + 1, col]
+            mid_bands[i, col] = np.mean(window_slice)
+            std_dev = np.std(window_slice)
+            upper_bands[i, col] = mid_bands[i, col] + num_std_dev * std_dev
+            lower_bands[i, col] = mid_bands[i, col] - num_std_dev * std_dev
+
+    return upper_bands, mid_bands, lower_bands
+
+def generate_ta(df):
+    # Define lists of price and size-related column names
+    prices = ["reference_price", "far_price", "near_price", "ask_price", "bid_price", "wap"]
+    # sizes = ["matched_size", "bid_size", "ask_size", "imbalance_size"]
+    
+    for stock_id, values in df.groupby(['stock_id'])[prices]:
+        # RSI
+        col_rsi = [f'rsi_{col}' for col in values.columns]
+        rsi_values = calculate_rsi(values.values)
+        df.loc[values.index, col_rsi] = rsi_values
+        
+        # MACD
+        macd_values, signal_line_values, histogram_values = calculate_macd(values.values)
+        col_macd = [f'macd_{col}' for col in values.columns]
+        col_signal = [f'macd_sig_{col}' for col in values.columns]
+        col_hist = [f'macd_hist_{col}' for col in values.columns]
+        
+        df.loc[values.index, col_macd] = macd_values
+        df.loc[values.index, col_signal] = signal_line_values
+        df.loc[values.index, col_hist] = histogram_values
+        
+        # Bollinger Bands
+        bband_upper_values, bband_mid_values, bband_lower_values = calculate_bband(values.values, window=20, num_std_dev=2)
+        col_bband_upper = [f'bband_upper_{col}' for col in values.columns]
+        col_bband_mid = [f'bband_mid_{col}' for col in values.columns]
+        col_bband_lower = [f'bband_lower_{col}' for col in values.columns]
+        
+        df.loc[values.index, col_bband_upper] = bband_upper_values
+        df.loc[values.index, col_bband_mid] = bband_mid_values
+        df.loc[values.index, col_bband_lower] = bband_lower_values
+    
+    return df
 
 
 # %%
@@ -67,46 +177,84 @@ from sklearn.impute import SimpleImputer
 imputer = SimpleImputer(strategy="median")
 Xy_train = pd.DataFrame(imputer.fit_transform(Xy_train), columns=Xy_train.columns)
 
+Xy_train = generate_ta(Xy_train)
+
+# %%
+# mutual information
+# from sklearn.feature_selection import mutual_info_regression
+
+y_train = Xy_train['target']
+X_train = Xy_train.drop(columns=['row_id'], inplace=False)
+
+# mutual_info_scores = mutual_info_regression(X_train, y_train)
+# feature_mutual_info_scores = pd.Series(mutual_info_scores, index=X_train.columns, name="Mutual_Information")
+# feature_mutual_info_scores_sorted = feature_mutual_info_scores.sort_values(ascending=False)
+# print("Sorted Mutual Information between each feature and target:")
+# print(feature_mutual_info_scores_sorted)
+
+correlation_with_target = X_train.corrwith(y_train)
+
+# Create a Series with feature names as index and correlation values as values
+feature_correlation_with_target = pd.Series(correlation_with_target, index=X_train.columns, name="Correlation_with_Target")
+
+# Sort the Series in descending order
+feature_correlation_sorted = feature_correlation_with_target.abs().sort_values(ascending=False)
+
+# Select the top 10 features with the highest correlation
+top_features = feature_correlation_sorted.head(11).index
+
+#%%
+from scipy.stats import pearsonr
+from statsmodels.stats.multitest import multipletests
+
+alpha = 0.01
+
+# Perform Pearson correlation and obtain p-values
+p_values = [pearsonr(Xy_train[col], Xy_train['target'])[1] for col in Xy_train.columns if col not in ['target']]
+
+# Apply Bonferroni correction
+reject, corrected_p_values, _, _ = multipletests(p_values, alpha=alpha, method='bonferroni')
+
+# Identify significant features after correction
+significant_features = [col for col, is_rejected in zip(Xy_train.columns, reject) if is_rejected]
+
+# Display the results
+print("Significant features after Bonferroni correction:")
+print(significant_features)
+
+
 #%%
 #feature correlaiton heatmap 
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# Assuming 'df' is your DataFrame
-# If you don't have seaborn and matplotlib installed, you can install them using:
-# pip install seaborn matplotlib
+# Select the top 10 features with the highest mutual information scores
+# top_features = feature_mutual_info_scores_sorted.head(11).index
+
+# Subset the original DataFrame to include only the top features
+X_top_features = X_train[top_features]
+
+# Generate correlation matrix for the top features
+correlation_matrix = X_top_features.corr()
 
 # Generate a correlation matrix
-correlation_matrix = Xy_train.corr()
+# correlation_matrix = Xy_train.corr()
 
 # Set up the matplotlib figure
 plt.figure(figsize=(10, 8))
 
 # Create a heatmap using seaborn
-sns.heatmap(correlation_matrix, annot=True, cmap="warmcool", fmt=".2f", linewidths=.5)
-# %%
-# mutual information
-from sklearn.feature_selection import mutual_info_regression
-
-y_train = Xy_train['target']
-X_train = Xy_train.drop(columns=['target', 'row_id'], inplace=False)
-
-mutual_info_scores = mutual_info_regression(X_train, y_train)
-feature_mutual_info_scores = pd.Series(mutual_info_scores, index=X_train.columns, name="Mutual_Information")
-print("Mutual information between each feature and target:")
-print(feature_mutual_info_scores)
+sns.heatmap(correlation_matrix, annot=True, fmt=".2f", linewidths=.5)
 
 
 #%%
 #feature correlation heatmap 
-from mlxtend.plotting import heatmap
-
-legal_Xy_train = Xy_train.drop(columns=['row_id'], inplace=False)
-
-correlation_coefs = legal_Xy_train.corr()
-corresponding_heatmap = heatmap(correlation_coefs.values, row_names=correlation_coefs.columns, column_names=correlation_coefs.columns)
-plt.show()
+# from mlxtend.plotting import heatmap
+# legal_Xy_train = Xy_train.drop(columns=['row_id'], inplace=False)
+# correlation_coefs = legal_Xy_train.corr()
+# corresponding_heatmap = heatmap(correlation_coefs.values, row_names=correlation_coefs.columns, column_names=correlation_coefs.columns)
+# plt.show()
 
 
 #%%
