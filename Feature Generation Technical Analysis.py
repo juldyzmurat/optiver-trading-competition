@@ -33,7 +33,7 @@ lgbm_params = {
     "n_estimators": 6000,
     "num_leaves": 256,
     "subsample": 0.6,
-    'learning_rate': 0.00871, 
+    'learning_rate': 0.01, 
     'max_depth': 11,
     "colsample_bytree" : 0.8,
     "n_jobs": 4,
