@@ -2,6 +2,7 @@
 import sys
 import os
 import collections
+import time
 
 # Data Science Libraries
 import pandas as pd
@@ -22,15 +23,16 @@ import statsmodels.graphics.api as smg
 
 # ML Libraries
 import sklearn as sk
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.feature_selection import SelectKBest, f_regression, RFE
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_absolute_error
 import lightgbm
-import xgboost
+import xgboost as xgb
 import catboost
-
-# Project Libraries
-
-# Configure Visualization
-%matplotlib inline
-plt.style.use('bmh')
+from tqdm import tqdm
 
 # Configure Pandas and SKLearn
 pd.set_option("display.max_colwidth", 20)
@@ -164,19 +166,10 @@ def generate_ta(df):
     
     return df
 
-
-# %%
-#fill in for missing values
-# columns_to_impute = ['imbalance_size', 'reference_price', 'matched_size', 'bid_price', 'ask_price', 'wap', 'target']
-# for column in columns_to_impute:
-#     median_value = Xy_train[column].median()
-#     Xy_train[column] = Xy_train[column].fillna(median_value)
-
 # Impute missing values with the median of corresponding column
 from sklearn.impute import SimpleImputer
 imputer = SimpleImputer(strategy="median")
 Xy_train = pd.DataFrame(imputer.fit_transform(Xy_train), columns=Xy_train.columns)
-
 Xy_train = generate_ta(Xy_train)
 
 # %%
@@ -185,12 +178,6 @@ Xy_train = generate_ta(Xy_train)
 
 y_train = Xy_train['target']
 X_train = Xy_train.drop(columns=['row_id'], inplace=False)
-
-# mutual_info_scores = mutual_info_regression(X_train, y_train)
-# feature_mutual_info_scores = pd.Series(mutual_info_scores, index=X_train.columns, name="Mutual_Information")
-# feature_mutual_info_scores_sorted = feature_mutual_info_scores.sort_values(ascending=False)
-# print("Sorted Mutual Information between each feature and target:")
-# print(feature_mutual_info_scores_sorted)
 
 correlation_with_target = X_train.corrwith(y_train)
 
@@ -236,33 +223,17 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# Select the top 10 features with the highest mutual information scores
-# top_features = feature_mutual_info_scores_sorted.head(11).index
-
 # Subset the original DataFrame to include only the top features
 X_top_features = X_train[top_features]
 
 # Generate correlation matrix for the top features
 correlation_matrix = X_top_features.corr()
 
-# Generate a correlation matrix
-# correlation_matrix = Xy_train.corr()
-
 # Set up the matplotlib figure
 plt.figure(figsize=(10, 8))
 
 # Create a heatmap using seaborn
 sns.heatmap(correlation_matrix, annot=True, fmt=".2f", linewidths=.5)
-
-
-#%%
-#feature correlation heatmap 
-# from mlxtend.plotting import heatmap
-# legal_Xy_train = Xy_train.drop(columns=['row_id'], inplace=False)
-# correlation_coefs = legal_Xy_train.corr()
-# corresponding_heatmap = heatmap(correlation_coefs.values, row_names=correlation_coefs.columns, column_names=correlation_coefs.columns)
-# plt.show()
-
 
 #%%
 #filter based feature selection 
@@ -309,13 +280,14 @@ X = Xy_train.drop("target",axis=1)
 y = Xy_train['target']
 from sklearn.feature_selection import mutual_info_regression
 mi = mutual_info_regression(X, y)
+
 #%%
 # Plotting the mutual information
-
 mi = pd.Series(mi)
 mi.index = X.columns
 mi.sort_values(ascending=False)
 mi.sort_values(ascending=False).plot.bar(figsize=(10, 4))
+
 # %%
 #Create stock-specific features capturing temporal order book dynamics for each stock individually.
 #Calculate changes in bid and ask prices, order sizes, spread, and volume.
@@ -386,8 +358,6 @@ Xy_train = Xy_train.reset_index(drop=True)
 # Display the updated DataFrame
 print(Xy_train.head())
 
-# Display the updated DataFrame
-
 #%%
 #check the unique values for time
 unique_values_count = Xy_train["stock_id"].nunique()
@@ -406,15 +376,6 @@ Xy_train_first_20_percent = Xy_train_sorted.groupby('stock_id').apply(leave_firs
 
 # Reset the index after filtering
 Xy_train_first_20_percent.reset_index(drop=True, inplace=True)
-
-#%%
-#bismillah
-import numpy as np
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
-import xgboost as xgb
-from tqdm import tqdm
 
 # Assuming Xy_train is your DataFrame with features and target
 
@@ -531,19 +492,6 @@ print("Overall Performance Metrics:")
 for fold_metric in fold_metrics:
     print(f"Stock {fold_metric['stock_id']} RMSE: {fold_metric['rmse']}")
 
-
-# %%
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.feature_selection import SelectKBest, f_regression, RFE
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score, mean_absolute_error
-import time
-import xgboost as xgb
-import numpy as np
-
-
 # Load your dataset
 # Replace 'your_dataset.csv' with the actual path or DataFrame variable
 data = Xy_train
@@ -571,17 +519,6 @@ X_train_wrapper = selector.fit_transform(X_train, y_train)
 X_test_wrapper = selector.transform(X_test)
 end_time = time.time()
 print(f"Wrapper feature selection time: {end_time - start_time} seconds")
-
-# Embedded feature selection (Random Forest)
-# start_time = time.time()
-# estimator = RandomForestRegressor(n_estimators=100, random_state=42)
-# estimator.fit(X_train, y_train)
-# importances = estimator.feature_importances_
-# feature_indices = (-importances).argsort()[:5]  # Adjust the number of features as needed
-# X_train_embedded = X_train.iloc[:, feature_indices]
-# X_test_embedded = X_test.iloc[:, feature_indices]
-# end_time = time.time()
-# print(f"Embedded feature selection time: {end_time - start_time} seconds")
 
 # Train models and evaluate
 def mean_absolute_percentage_error(y_true, y_pred):
@@ -616,28 +553,3 @@ evaluate_model(X_train_filtered, X_test_filtered, y_train, y_test)
 # Evaluate wrapper model
 print("\nWrapper model evaluation:")
 evaluate_model(X_train_wrapper, X_test_wrapper, y_train, y_test)
-
-# Evaluate embedded model
-# print("\nEmbedded model evaluation:")
-# evaluate_model(X_train_embedded, X_test_embedded, y_train, y_test)
-
-
-# %%
-#mutual information 
-
-#%%
-#feature correlation heatmap 
-
-#%%
-#revisit the three feature selection methods from math perspective 
-#compare lstm with xgboost - be careful with the format
-#test presence and absence of wap 
-#%%
-#lstm model 
-Xy_train_1 = Xy_train[Xy_train['stock_id'] == 0]
-Xy_train_1
-# %%
-#scaling 
-from sklearn.preprocessing import MinMaxScaler
-sc = MinMaxScaler(feature_range=(0,1))
-Xy_train = sc.fit_transform(Xy_train)

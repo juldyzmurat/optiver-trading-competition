@@ -52,15 +52,6 @@ Xy_train = Xy_train.drop(['far_price', 'near_price'], axis=1)
 
 Xy_train = Xy_train[Xy_train['stock_id'].between(0, 9)]
 
-Xy_train
-
-
-# %%
-#fill in for missing values
-# columns_to_impute = ['imbalance_size', 'reference_price', 'matched_size', 'bid_price', 'ask_price', 'wap', 'target']
-# for column in columns_to_impute:
-#     median_value = Xy_train[column].median()
-#     Xy_train[column] = Xy_train[column].fillna(median_value)
 
 # Impute missing values with the median of corresponding column
 from sklearn.impute import SimpleImputer
@@ -417,17 +408,6 @@ X_test_wrapper = selector.transform(X_test)
 end_time = time.time()
 print(f"Wrapper feature selection time: {end_time - start_time} seconds")
 
-# Embedded feature selection (Random Forest)
-# start_time = time.time()
-# estimator = RandomForestRegressor(n_estimators=100, random_state=42)
-# estimator.fit(X_train, y_train)
-# importances = estimator.feature_importances_
-# feature_indices = (-importances).argsort()[:5]  # Adjust the number of features as needed
-# X_train_embedded = X_train.iloc[:, feature_indices]
-# X_test_embedded = X_test.iloc[:, feature_indices]
-# end_time = time.time()
-# print(f"Embedded feature selection time: {end_time - start_time} seconds")
-
 # Train models and evaluate
 def mean_absolute_percentage_error(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
@@ -461,28 +441,3 @@ evaluate_model(X_train_filtered, X_test_filtered, y_train, y_test)
 # Evaluate wrapper model
 print("\nWrapper model evaluation:")
 evaluate_model(X_train_wrapper, X_test_wrapper, y_train, y_test)
-
-# Evaluate embedded model
-# print("\nEmbedded model evaluation:")
-# evaluate_model(X_train_embedded, X_test_embedded, y_train, y_test)
-
-
-# %%
-#mutual information 
-
-#%%
-#feature correlation heatmap 
-
-#%%
-#revisit the three feature selection methods from math perspective 
-#compare lstm with xgboost - be careful with the format
-#test presence and absence of wap 
-#%%
-#lstm model 
-Xy_train_1 = Xy_train[Xy_train['stock_id'] == 0]
-Xy_train_1
-# %%
-#scaling 
-from sklearn.preprocessing import MinMaxScaler
-sc = MinMaxScaler(feature_range=(0,1))
-Xy_train = sc.fit_transform(Xy_train)
