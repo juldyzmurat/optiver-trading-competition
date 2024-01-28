@@ -48,15 +48,6 @@ The `train.csv` dataset contains the following key features:
 - Hyperparameter tuning with Optuna   
 - Cross-validation
 
-## Usage
-The main modeling pipeline is contained in `train_model.py`. Key parameters can be configured at the top of the file.   
-
-To run feature engineering and modeling:
-
-\```
-python train_model.py  
-\```
-
 ## Installation
 This project requires Python 3 and the following libraries: 
 - Pandas
